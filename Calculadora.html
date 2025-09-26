@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Pagos  - V2.0</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        .calculator-container {
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+        h2 {
+            text-align: center;
+            color: #0056b3;
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: calc(100% - 22px);
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .result-box {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px solid #28a745; /* Color verde para resaltar el cierre */
+            border-radius: 4px;
+            background-color: #e6ffed;
+        }
+        .result-box p {
+            margin: 5px 0;
+            font-size: 1.1em;
+        }
+        .result-box .highlight {
+            font-weight: bold;
+            color: #dc3545; /* Rojo para el pago inicial */
+        }
+        .result-box .fixed {
+            font-weight: bold;
+            color: #007bff; /* Azul para el pago fijo */
+        }
+        .implementation-cost {
+            font-size: 0.9em;
+            color: #6c757d;
+            margin-top: -10px;
+            margin-bottom: 15px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+
+<div class="calculator-container">
+    <h2>Calculadora de Financiamiento Filedesk </h2>
+
+    <label for="precioLicencia">1. Precio de la Licencia (USD):</label>
+    <input type="number" id="precioLicencia" value="5000" min="0">
+
+    <label for="porcentajeImplementacion">2. Porcentaje de Implementación (% del precio de la Licencia):</label>
+    <input type="number" id="porcentajeImplementacion" value="24" min="0" step="1">
+    <span id="costoImplementacionTexto" class="implementation-cost">Costo de Implementación: $1,200.00 USD</span>
+
+    <label for="apr">3. Tasa de Interés Anual (APR - %):</label>
+    <input type="number" id="apr" value="20" min="0" step="0.1">
+
+    <label for="plazoMeses">4. Plazo en Meses:</label>
+    <input type="number" id="plazoMeses" value="12" min="1" step="1">
+
+    <div class="result-box">
+        <h3>Resumen del Plan de Pagos</h3>
+        <p>Monto Neto a Financiar: <span id="montoNeto" class="fixed"></span></p>
+        <p>Cuota Mensual Fija (Licencia): <span id="cuotaMensualFija" class="fixed"></span></p>
+        <hr>
+        <p>PAGO TOTAL MES 1 (Inicial): <span id="pagoMes1" class="highlight"></span></p>
+        <p>PAGO MENSUAL (Meses 2 al 12): <span id="pagoFijoResto" class="fixed"></span></p>
+    </div>
+</div>
+
+<script>
+    const formatter = new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: 'USD',
+        minimumFractionDigits: 2,
+    });
+
+    function calcularPago() {
+        // 1. Obtener valores de las entradas
+        const precioLicencia = parseFloat(document.getElementById('precioLicencia').value) || 0;
+        const porcentajeImplementacion = parseFloat(document.getElementById('porcentajeImplementacion').value) || 0;
+        const apr = parseFloat(document.getElementById('apr').value) / 100; // Convertir APR a decimal
+        const plazoMeses = parseInt(document.getElementById('plazoMeses').value) || 12;
+
+        // 2. Calcular el Costo de Implementación y el Monto Neto a Financiar
+        // El costo de implementación ahora es una variable calculada
+        const costoImplementacion = precioLicencia * (porcentajeImplementacion / 100);
+        
+        // Monto Neto a Financiar (P) = Licencia - Costo de Implementación
+        const montoNetoAFinanciar = precioLicencia - costoImplementacion;
+
+        // 3. Actualizar el costo de implementación en texto (feedback al usuario)
+        document.getElementById('costoImplementacionTexto').textContent = `Costo de Implementación: ${formatter.format(costoImplementacion)}`;
+
+
+        // 4. Validaciones
+        if (montoNetoAFinanciar <= 0 || plazoMeses <= 0) {
+            document.getElementById('montoNeto').textContent = formatter.format(0);
+            document.getElementById('cuotaMensualFija').textContent = formatter.format(0);
+            document.getElementById('pagoMes1').textContent = "Error: Monto a financiar <= 0";
+            document.getElementById('pagoFijoResto').textContent = "---";
+            return;
+        }
+
+        // 5. Calcular la Cuota Mensual Fija (M) usando la fórmula PMT
+        const tasaMensual = apr / 12;
+        let cuotaMensualFija = 0;
+        
+        if (tasaMensual === 0) {
+            cuotaMensualFija = montoNetoAFinanciar / plazoMeses;
+        } else {
+            const factor = Math.pow(1 + tasaMensual, plazoMeses);
+            cuotaMensualFija = montoNetoAFinanciar * (tasaMensual * factor) / (factor - 1);
+        }
+        
+        // 6. Calcular los pagos para el cliente
+        const pagoMes1 = cuotaMensualFija + costoImplementacion;
+        const pagoFijoResto = cuotaMensualFija;
+
+        // 7. Formatear resultados y actualizar la interfaz
+        document.getElementById('montoNeto').textContent = formatter.format(montoNetoAFinanciar);
+        document.getElementById('cuotaMensualFija').textContent = formatter.format(cuotaMensualFija);
+        document.getElementById('pagoMes1').textContent = formatter.format(pagoMes1);
+        document.getElementById('pagoFijoResto').textContent = formatter.format(pagoFijoResto);
+    }
+
+    // Inicializar la calculadora y agregar listeners
+    document.addEventListener('DOMContentLoaded', () => {
+        calcularPago();
+        // Agregar listeners para que la calculadora se actualice con cualquier cambio
+        document.getElementById('precioLicencia').addEventListener('input', calcularPago);
+        document.getElementById('porcentajeImplementacion').addEventListener('input', calcularPago);
+        document.getElementById('apr').addEventListener('input', calcularPago);
+        document.getElementById('plazoMeses').addEventListener('input', calcularPago);
+    });
+</script>
+
+</body>
+</html>
